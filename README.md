@@ -186,6 +186,10 @@ As mentioned previously, the computation graph would normally be made when using
 Extra
 -----
 
-This is an extra section just to add a useful asides. Firstly, a note for `torch.multiprocessing`, or even just running multiple PyTorch scripts at once. Because PyTorch uses multithreaded BLAS libraries to speed up linear algebra computations on CPU, it'll typically use several cores. If you want to run several things at once, with multiprocessing or several scripts, it may be useful to manually reduce these by setting the environment variable `OMP_NUM_THREADS` to 1 or another small number - this reduces the chance of CPU thrashing.
+This is an extra section just to add a few useful asides.
+
+Memory problems? Check the [official docs](https://pytorch.org/docs/stable/notes/faq.html#my-model-reports-cuda-runtime-error-2-out-of-memory) for tips.
 
 CUDA errors? They are a pain to debug, and are usually a logic problem that would come up with a more intelligible error message on CPU. It's best to be able to easily switch between CPU and GPU if you are planning on using the GPU. A more general development tip is to be able to set up your code so that it's possible to run through all of the logic quickly to check it before launching a proper job - examples would be preparing a small/synthetic dataset, running one train + test epoch, etc.
+
+A note for `torch.multiprocessing`, or even just running multiple PyTorch scripts at once. Because PyTorch uses multithreaded BLAS libraries to speed up linear algebra computations on CPU, it'll typically use several cores. If you want to run several things at once, with multiprocessing or several scripts, it may be useful to manually reduce these by setting the environment variable `OMP_NUM_THREADS` to 1 or another small number - this reduces the chance of CPU thrashing. The [official docs](https://pytorch.org/docs/stable/notes/multiprocessing.html) have some other notes for multiprocessing in particular.
