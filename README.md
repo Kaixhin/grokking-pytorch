@@ -182,3 +182,8 @@ print(acc, test_loss)
 In response to `.train()` earlier, networks should explicitly be set to evaluation mode using `.eval()`.
 
 As mentioned previously, the computation graph would normally be made when using a network. By using the `no_grad` context manager via `with torch.no_grad()` this is prevented from happening.
+
+Extra
+-----
+
+This is an extra section just to add a useful aside on `torch.multiprocessing`, or even just running multiple PyTorch scripts at once. Because PyTorch uses multithreaded BLAS libraries to speed up linear algebra computations on CPU, it'll typically use several cores. If you want to run several things at once, with multiprocessing or several scripts, it may be useful to manually reduce these by setting the environment variable `OMP_NUM_THREADS` to 1 or another small number - this reduces the chance of CPU thrashing.
