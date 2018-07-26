@@ -1,9 +1,9 @@
 Grokking PyTorch
 ================
 
-[PyTorch](https://pytorch.org/) is a fast and flexible deep learning framework that allows automatic differentiation through dynamic neural networks (i.e., networks that utilise dynamic control flow like if statements and while loops).
+[PyTorch](https://pytorch.org/) is a flexible deep learning framework that allows automatic differentiation through dynamic neural networks (i.e., networks that utilise dynamic control flow like if statements and while loops). It supports GPU acceleration, [distributed training](https://pytorch.org/docs/stable/distributed.html), [various optimisations](https://pytorch.org/2018/05/02/road-to-1.0.html), and plenty more neat features. These are some notes on how I think about using PyTorch, and don't encompass all parts of the library or every best practice, but may be helpful to others.
 
-Neural networks are a subclass of *computation graphs*. Computation graphs receive input data, and data is routed to and possibly transformed by nodes which perform processing on the data. In deep learning, the neurons (nodes) in neural networks typically transform data with parameters and differentiable functions, such that the parameters can be optimised to minimise a loss via gradient descent. More broadly, the functions can be stochastic, and the structure of the graph can be dynamic. So while neural networks are well suited for [dataflow programming](https://en.wikipedia.org/wiki/Dataflow_programming), PyTorch's API is more centred around the typical [imperative programming](https://en.wikipedia.org/wiki/Imperative_programming) paradigm to make it easier to read and reason about control flow, and hence complex programs.
+Neural networks are a subclass of *computation graphs*. Computation graphs receive input data, and data is routed to and possibly transformed by nodes which perform processing on the data. In deep learning, the neurons (nodes) in neural networks typically transform data with parameters and differentiable functions, such that the parameters can be optimised to minimise a loss via gradient descent. More broadly, the functions can be stochastic, and the structure of the graph can be dynamic. So while neural networks may be a good fit for [dataflow programming](https://en.wikipedia.org/wiki/Dataflow_programming), PyTorch's API has instead centred around [imperative programming](https://en.wikipedia.org/wiki/Imperative_programming), which is a more common way for thinking about programs. This makes it easier to read code and reason about complex programs, without necessarily sacrificing much performance; PyTorch is actually pretty fast, with plenty of optimisations that you can safely forget about as an end user (but you can dig in if you really want to).
 
 The rest of this document, based on the [official MNIST example](https://github.com/pytorch/examples/tree/master/mnist), is about *grokking* PyTorch, and should only be looked at after the [official beginner tutorials](https://pytorch.org/tutorials/). For readability, the code is presented in chunks interspersed with comments, and hence not separated into different functions/files as it would normally be for clean, modular code.
 
@@ -38,8 +38,8 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='disables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
-parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                    help='how many batches to wait before logging training status')
+parser.add_argument('--save-interval', type=int, default=10, metavar='N',
+                    help='how many batches to wait before checkpointing')
 parser.add_argument('--resume', action='store_true', default=False,
                     help='resume training from checkpoint')
 args = parser.parse_args()
@@ -104,15 +104,15 @@ model = Net().to(device)
 optimiser = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
 if args.resume:
-  model.load_state_dict('model.pth')
-  optimiser.load_state_dict('optimiser.pth')
+  model.load_state_dict(torch.load('model.pth'))
+  optimiser.load_state_dict(torch.load('optimiser.pth'))
 ```
 
 Network initialisation typically includes member variables, layers which contain trainable parameters, and maybe separate trainable parameters and non-trainable buffers. The forward pass then uses these in conjunction with functions from `F` that are purely functional (don't contain parameters). Some people prefer to have completely functional networks (e.g., keeping parameters separately and using `F.conv2d` instead of `nn.Conv2d`) or networks completely made of layers (e.g., `nn.ReLU` instead of `F.relu`).
 
 `.to(device)` is a convenient way of sending the device parameters (and buffers) to GPU if `device` is set to GPU, doing nothing otherwise (when `device` is set to CPU). It's important to transfer the network parameters to the appropriate device before passing them to the optimiser, otherwise the optimiser will not be keeping track of the parameters properly!
 
-Both neural networks (`nn.Module`) and optimisers have the ability to save and load their internal state, and `.load_state_dict(state_dict)` is the recommended way to do so - you'll want to reload the state of both to resume training from previously saved state dictionaries. Saving the entire object can be [error prone](https://pytorch.org/docs/stable/notes/serialization.html).
+Both neural networks (`nn.Module`) and optimisers (`optim.Optimizer`) have the ability to save and load their internal state, and `.load_state_dict(state_dict)` is the recommended way to do so - you'll want to reload the state of both to resume training from previously saved state dictionaries. Saving the entire object can be [error prone](https://pytorch.org/docs/stable/notes/serialization.html).
 
 Some points of note not shown here are that the forward pass can make use of control flow (e.g., a member variable or even the data itself can determine the execution of an if statement. It is also perfectly valid to `print` tensors in the middle, making debugging much easier. Finally, the forward pass can make use of multiple arguments. A short snippet (not tied to any sensible idea) to illustrate this is below:
 
@@ -130,31 +130,55 @@ Training
 --------
 
 ```py
-losses = []
+model.train()
+train_losses = []
 
-net.train()
+for i, (data, target) in enumerate(train_loader):
+  data, target = data.to(device), target.to(device)
+  optimiser.zero_grad()
+  output = model(data)
+  loss = F.nll_loss(output, target)
+  loss.backward()
+  train_losses.append(loss.item())
+  optimiser.step()
 
-
-  losses.append(loss.item())
+  if i % 10 == 0:
+    print(i, loss.item())
+    torch.save(model.state_dict(), 'model.pth')
+    torch.save(optimiser.state_dict(), 'optimiser.pth')
+    torch.save(train_losses, 'train_losses.pth')
 ```
 
 Network modules are by default set to training mode - which impacts the way some modules work, most noticeably dropout and batch normalisation. It's best to set this manually anyway with `.train()`, which propagates the training flag down all children modules.
 
-It's important not to accidentally store the graph! See the [official docs](https://pytorch.org/docs/stable/notes/autograd.html) for more on autograd.
-Talk about `.detach()` for RL?
+Before collecting a new set of gradients with `loss.backward()` and doing backpropagation with `optimiser.step()`, it's necessary to manually zero the gradients of the parameters being optimised with `optimiser.zero_grad()`. By default, PyTorch *accumulates* gradients, which is very handy when you don't have enough resources to calculate all the gradients you need in one go.
 
-Talk about accumulating grads
+PyTorch uses a tape-based automatic gradient (autograd) system - it collects which operations were done on tensors in order, and then replays them backwards to do reverse-mode differentiation. This is why it is super flexible and allows arbitrary computation graphs. If none of the tensors require gradients (you'd have to set `requires_grad=True` when constructing a tensor for this) then no graph is stored! However, networks tend to have parameters that require gradients, so any computation done from the output of a network will be stored in the graph. So if you want to store data resulting from this, you'll need to manually disable gradients or, more commonly, store it as a Python number (via `.item()` on a PyTorch scalar) or numpy array. See the [official docs](https://pytorch.org/docs/stable/notes/autograd.html) for more on autograd.
 
+One way to cut the computation graph is to use `.detach()`, which you may use when passing on a hidden state when training RNNs with truncated backpropagation-through-time. It's also handy when differentiating a loss where one component is the output of another network, but this other network shouldn't be optimised with respect to the loss - examples include training a discriminator from a generator's outputs in GAN training, or training the policy of an actor-critic algorithm using the value function as a baseline (e.g. A2C). Another technique for preventing gradient calculations that is efficient in GAN training (training the generator from the discriminator) and typical in fine-tuning is to loop through a networks parameters and set `param.requires_grad = False`.
+
+Apart from logging results in the console/in a log file, it's important to checkpoint model parameters (and optimiser state) just in case. You can also use `torch.save()` to save normal Python objects, but other standard choices include the built-in `pickle`.
 
 Testing
 -------
 
 ```py
-net.eval()
+model.eval()
+test_loss, correct = 0, 0
 
 with torch.no_grad():
+  for data, target in test_loader:
+    data, target = data.to(device), target.to(device)
+    output = model(data)
+    test_loss += F.nll_loss(output, target, size_average=False).item()
+    pred = output.argmax(1, keepdim=True)
+    correct += pred.eq(target.view_as(pred)).sum().item()
+
+test_loss /= len(test_data)
+acc = correct / len(test_data)
+print(acc, test_loss)
 ```
 
-In response to earlier, networks should explicitly be set to evaluation mode using `.eval()`.
+In response to `.train()` earlier, networks should explicitly be set to evaluation mode using `.eval()`.
 
-Because of the way autograd works, the computation graph is kept during evaluation; `with torch.no_grad()` stops this happening.
+As mentioned previously, the computation graph would normally be made when using a network. By using the `no_grad` context manager via `with torch.no_grad()` this is prevented from happening.
