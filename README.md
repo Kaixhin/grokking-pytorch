@@ -12,6 +12,7 @@ Imports
 
 ```py
 import argparse
+import os
 import torch
 from torch import nn, optim
 from torch.nn import functional as F
@@ -61,11 +62,12 @@ Data
 ----
 
 ```py
-train_data = datasets.MNIST('data', train=True, download=True,
+data_path = os.path.join(os.path.expanduser('~'), '.torch', 'datasets', 'mnist')
+train_data = datasets.MNIST(data_path, train=True, download=True,
                             transform=transforms.Compose([
                               transforms.ToTensor(),
                               transforms.Normalize((0.1307,), (0.3081,))]))
-test_data = datasets.MNIST('data', train=False, transform=transforms.Compose([
+test_data = datasets.MNIST(data_path, train=False, transform=transforms.Compose([
                              transforms.ToTensor(),
                              transforms.Normalize((0.1307,), (0.3081,))]))
 
@@ -74,6 +76,8 @@ train_loader = DataLoader(train_data, batch_size=args.batch_size,
 test_loader = DataLoader(test_data, batch_size=args.batch_size,
                          num_workers=4, pin_memory=True)
 ```
+
+Since `torchvision` models get stored under `~/.torch/models/`, I like to store `torchvision` datasets under `~/.torch/datasets`. This is my own convention, but makes it easier if you have lots of projects that depend on MNIST, CIFAR-10 etc. In general it's worth keeping datasets separately to code if you end up reusing several datasets.
 
 `torchvision.transforms` contains lots of handy transformations for single images, such as cropping and normalisation.
 
