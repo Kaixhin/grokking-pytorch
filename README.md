@@ -81,7 +81,7 @@ Since `torchvision` models get stored under `~/.torch/models/`, I like to store 
 
 `torchvision.transforms` contains lots of handy transformations for single images, such as cropping and normalisation.
 
-`DataLoader` contains many options, but beyond `batch_size` and `shuffle`, `num_workers` and `pin_memory` are worth knowing for efficiency. `num_workers` > 0 uses subprocesses to asynchronously load data, rather than making the main process block on this. `pin_memory` uses [pinned RAM](https://pytorch.org/docs/master/notes/cuda.html#use-pinned-memory-buffers) to speed up RAM to GPU transfers (and does nothing for CPU-only code).
+`DataLoader` contains many options, but beyond `batch_size` and `shuffle`, `num_workers` and `pin_memory` are worth knowing for efficiency. `num_workers` > 0 uses subprocesses to asynchronously load data, rather than making the main process block on this. The typical use-case is when loading data (e.g. images) from disk and maybe transforming them too - this can be done in parallel with the network processing the data. You will want to tune the amount to a) minimise the number of workers and hence CPU and RAM usage (each worker loads a separate batch, not individual samples within a batch) b) minimise the time the network is waiting for data. `pin_memory` uses [pinned RAM](https://pytorch.org/docs/master/notes/cuda.html#use-pinned-memory-buffers) to speed up RAM to GPU transfers (and does nothing for CPU-only code).
 
 Model
 -----
