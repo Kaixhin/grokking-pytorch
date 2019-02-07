@@ -81,7 +81,7 @@ Since `torchvision` models get stored under `~/.torch/models/`, I like to store 
 
 `torchvision.transforms` contains lots of handy transformations for single images, such as cropping and normalisation.
 
-`DataLoader` contains many options, but beyond `batch_size` and `shuffle`, `num_workers` and `pin_memory` are worth knowing for efficiency. `num_workers` > 0 uses subprocesses to asynchronously load data, rather than making the main process block on this. The typical use-case is when loading data (e.g. images) from disk and maybe transforming them too - this can be done in parallel with the network processing the data. You will want to tune the amount to a) minimise the number of workers and hence CPU and RAM usage (each worker loads a separate batch, not individual samples within a batch) b) minimise the time the network is waiting for data. `pin_memory` uses [pinned RAM](https://pytorch.org/docs/master/notes/cuda.html#use-pinned-memory-buffers) to speed up RAM to GPU transfers (and does nothing for CPU-only code).
+`DataLoader` contains many options, but beyond `batch_size` and `shuffle`, `num_workers` and `pin_memory` are worth knowing for efficiency. `num_workers` > 0 uses subprocesses to asynchronously load data, rather than making the main process block on this. The typical use-case is when loading data (e.g. images) from disk and maybe transforming them too - this can be done in parallel with the network processing the data. You will want to tune the amount to a) minimise the number of workers and hence CPU and RAM usage (each worker loads a separate batch, not individual samples within a batch) b) minimise the time the network is waiting for data. `pin_memory` uses [pinned memory](https://pytorch.org/docs/master/notes/cuda.html#use-pinned-memory-buffers) (as opposed to paged memory) to speed up any RAM to GPU transfers (and does nothing for CPU-only code).
 
 Model
 -----
@@ -156,7 +156,7 @@ for i, (data, target) in enumerate(train_loader):
 
 Network modules are by default set to training mode - which impacts the way some modules work, most noticeably dropout and batch normalisation. It's best to set this manually anyway with `.train()`, which propagates the training flag down all children modules.
 
-Here the `.to()` method not only takes the device, but also sets `non_blocking=True`, which enables asynchronous data copies to GPU with pinned memory, making use of the `pin_memory` option in the dataloader; `non_blocking=True` is simply a no-op otherwise.
+Here the `.to()` method not only takes the device, but also sets `non_blocking=True`, which enables asynchronous data copies to GPU from pinned memory, hence allowing the CPU to keep operating during the transfer; `non_blocking=True` is simply a no-op otherwise.
 
 Before collecting a new set of gradients with `loss.backward()` and doing backpropagation with `optimiser.step()`, it's necessary to manually zero the gradients of the parameters being optimised with `optimiser.zero_grad()`. By default, PyTorch *accumulates* gradients, which is very handy when you don't have enough resources to calculate all the gradients you need in one go.
 
