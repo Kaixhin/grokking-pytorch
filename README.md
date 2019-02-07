@@ -138,7 +138,8 @@ model.train()
 train_losses = []
 
 for i, (data, target) in enumerate(train_loader):
-  data, target = data.to(device), target.to(device)
+  data = data.to(device=device, non_blocking=True)
+  target = target.to(device=device, non_blocking=True)
   optimiser.zero_grad()
   output = model(data)
   loss = F.nll_loss(output, target)
@@ -154,6 +155,8 @@ for i, (data, target) in enumerate(train_loader):
 ```
 
 Network modules are by default set to training mode - which impacts the way some modules work, most noticeably dropout and batch normalisation. It's best to set this manually anyway with `.train()`, which propagates the training flag down all children modules.
+
+Here the `.to()` method not only takes the device, but also sets `non_blocking=True`, which enables asynchronous data copies to GPU with pinned memory, making use of the `pin_memory` option in the dataloader; `non_blocking=True` is simply a no-op otherwise.
 
 Before collecting a new set of gradients with `loss.backward()` and doing backpropagation with `optimiser.step()`, it's necessary to manually zero the gradients of the parameters being optimised with `optimiser.zero_grad()`. By default, PyTorch *accumulates* gradients, which is very handy when you don't have enough resources to calculate all the gradients you need in one go.
 
@@ -172,7 +175,8 @@ test_loss, correct = 0, 0
 
 with torch.no_grad():
   for data, target in test_loader:
-    data, target = data.to(device), target.to(device)
+    data = data.to(device=device, non_blocking=True)
+    target = target.to(device=device, non_blocking=True)
     output = model(data)
     test_loss += F.nll_loss(output, target, reduction='sum').item()
     pred = output.argmax(1, keepdim=True)
