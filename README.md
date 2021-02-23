@@ -164,7 +164,7 @@ PyTorch uses a tape-based automatic gradient (autograd) system - it collects whi
 
 One way to cut the computation graph is to use `.detach()`, which you may use when passing on a hidden state when training RNNs with truncated backpropagation-through-time. It's also handy when differentiating a loss where one component is the output of another network, but this other network shouldn't be optimised with respect to the loss - examples include training a discriminator from a generator's outputs in GAN training, or training the policy of an actor-critic algorithm using the value function as a baseline (e.g. A2C). Another technique for preventing gradient calculations that is efficient in GAN training (training the generator from the discriminator) and typical in fine-tuning is to loop through a networks parameters and set `param.requires_grad = False`.
 
-Apart from logging results in the console/in a log file, it's important to checkpoint model parameters (and optimiser state) just in case. You can also use `torch.save()` to save normal Python objects, but other standard choices include the built-in `pickle`.
+Apart from logging results in the console/in a log file, it's important to checkpoint model parameters (and optimiser state) just in case. You can also use `torch.save()` to save normal Python objects, but other standard choices include the built-in `pickle`. Note that here that if the parameters are on GPU they will be saved on GPU, but can be recovered on CPU using `map_location`, as discussed previously; casting the model parameters to CPU before using `.state_dict()` would therefore require casting back to GPU before resuming the rest of your code.
 
 Testing
 -------
