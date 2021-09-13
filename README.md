@@ -173,7 +173,7 @@ Testing
 model.eval()
 test_loss, correct = 0, 0
 
-with torch.no_grad():
+with torch.inference_mode():
   for data, target in test_loader:
     data = data.to(device=device, non_blocking=True)
     target = target.to(device=device, non_blocking=True)
@@ -189,7 +189,7 @@ print(acc, test_loss)
 
 In response to `.train()` earlier, networks should explicitly be set to evaluation mode using `.eval()`.
 
-As mentioned previously, the computation graph would normally be made when using a network. By using the `no_grad` context manager via `with torch.no_grad()` this is prevented from happening.
+As mentioned previously, the computation graph would normally be made when using a network. By using the `inference_mode` context manager via `with torch.inference_mode()` this is prevented from happening. Previous versions of PyTorch only had the `no_grad` context manager, which can be used to disable gradient computations within a context, but allow the variables from the context to be used as part of a computation graph. For full details of what this means and what it entails, see the [official docs](https://pytorch.org/docs/stable/notes/autograd.html#locally-disable-grad-doc) on locally disabling gradients.
 
 Extra
 -----
